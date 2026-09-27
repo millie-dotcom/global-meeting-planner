@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Global Meeting Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+[hidden]{display:none!important}
+body{margin:0}
+:root{
+  --bg:#F6F7F9; --surface:#FFFFFF; --ink:#1F2430; --muted:#6B7280; --line:#E6E8EE; --fill:#F3F4F7; --fill-hover:#E9EBF0;
+  --accent:#4F46BA; --accent-hover:#433BA6; --accent-ink:#FFFFFF; --accent-soft:#ECEBFB;
+  --in-bg:#F1F0FD; --in-line:#CFCBF3; --in-ink:#3F37A0; --in-focus:#8B83E0;
+  --ok:#2F7A52; --err:#C0283B; --err-bg:#FDE8EA;
+  --good:#E5F4EC; --good-ink:#23694A; --warn:#FDF0E0; --warn-ink:#935316; --bad:#FDE6E6; --bad-ink:#B0323A;
+  --dot-good:#5DBB8A; --dot-warn:#F0A95B; --dot-bad:#E57373; --drop:#4F46BA;
+  --shadow:0 1px 2px rgba(20,24,40,.04),0 8px 24px rgba(20,24,40,.05);
+  --sans:"Plus Jakarta Sans","Segoe UI",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  --display:"Plus Jakarta Sans","Segoe UI",-apple-system,BlinkMacSystemFont,Arial,sans-serif;
+  --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%234F46BA' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#111318; --surface:#1A1D24; --ink:#EEF0F5; --muted:#A0A6B4; --line:#2C303A; --fill:#232730; --fill-hover:#2C313C;
+    --accent:#9D97F5; --accent-hover:#B0ABF8; --accent-ink:#15172A; --accent-soft:#2A2850;
+    --in-bg:#24223F; --in-line:#4A4590; --in-ink:#CFCBFF; --in-focus:#A39DF7;
+    --ok:#7FD4A6; --err:#FF8A96; --err-bg:#45212A;
+    --good:#1C3A2C; --good-ink:#9BE0B9; --warn:#3F2F1A; --warn-ink:#F5C089; --bad:#46232A; --bad-ink:#FF9EA5;
+    --dot-good:#5DBB8A; --dot-warn:#F0A95B; --dot-bad:#E57373; --drop:#9D97F5;
+    --shadow:0 0 0 1px rgba(255,255,255,.04);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#111318; --surface:#1A1D24; --ink:#EEF0F5; --muted:#A0A6B4; --line:#2C303A; --fill:#232730; --fill-hover:#2C313C;
+  --accent:#9D97F5; --accent-hover:#B0ABF8; --accent-ink:#15172A; --accent-soft:#2A2850;
+  --in-bg:#24223F; --in-line:#4A4590; --in-ink:#CFCBFF; --in-focus:#A39DF7;
+  --ok:#7FD4A6; --err:#FF8A96; --err-bg:#45212A;
+  --good:#1C3A2C; --good-ink:#9BE0B9; --warn:#3F2F1A; --warn-ink:#F5C089; --bad:#46232A; --bad-ink:#FF9EA5;
+  --dot-good:#5DBB8A; --dot-warn:#F0A95B; --dot-bad:#E57373; --drop:#9D97F5;
+  --shadow:0 0 0 1px rgba(255,255,255,.04);
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;padding:44px 16px 64px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;display:grid;gap:26px}
+.wrap>*,.panel>*{min-width:0}
+header{display:grid;gap:8px}
+.eyebrow{font-size:.78rem;font-weight:700;color:var(--accent);letter-spacing:.14em;text-transform:uppercase}
+h1{font-family:var(--display);font-size:clamp(2rem,4.5vw,2.8rem);line-height:1.1;margin:0;font-weight:800;letter-spacing:-.03em;text-wrap:balance}
+.sub{margin:0;color:var(--muted);font-size:1.05rem;max-width:60ch}
+.bar{display:flex;flex-wrap:wrap;gap:14px 16px;align-items:end;justify-content:space-between}
+.field{display:grid;gap:6px}
+label{font-size:.82rem;font-weight:600;color:var(--muted)}
+.lbl{font-family:var(--display);font-size:1.1rem;font-weight:700;color:var(--ink)}
+select,input{font:inherit;color:var(--ink);background:var(--fill);border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;transition:background .15s,border-color .15s,box-shadow .15s}
+select{appearance:none;-webkit-appearance:none;padding-right:34px;background-image:var(--chev);background-repeat:no-repeat;background-position:right 12px center;cursor:pointer}
+#loc{background-color:var(--in-bg);border-color:var(--in-line);color:var(--in-ink);font-weight:600;min-width:min(300px,100%)}
+select:hover{background-color:var(--fill-hover)}
+#loc:hover{border-color:var(--in-focus)}
+select:focus-visible,input:focus-visible,button:focus-visible{outline:none;box-shadow:0 0 0 4px var(--accent-soft);border-color:var(--accent)}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+button{font:inherit;font-weight:700;cursor:pointer;border-radius:999px;padding:10px 20px;border:1.5px solid var(--accent-soft);background:var(--surface);color:var(--accent);transition:background .15s,color .15s,border-color .15s}
+button:hover{background:var(--accent-soft)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);box-shadow:0 4px 12px rgba(79,70,186,.22)}
+button.primary:hover{background:var(--accent-hover)}
+.panel{background:var(--surface);border-radius:22px;padding:24px;display:grid;gap:16px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.fillnote{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--in-ink);font-weight:600}
+.fillnote .sw{background:var(--in-bg);border:1.5px solid var(--in-line);width:16px;height:16px;border-radius:5px;margin:0}
+.scroll{overflow-x:auto;margin:-6px}
+table{border-collapse:separate;border-spacing:6px;font-variant-numeric:tabular-nums;min-width:100%}
+th,td{padding:8px 12px;text-align:center;white-space:nowrap;border:none}
+th.rowlbl,td.rowlbl{text-align:left;font-weight:600;color:var(--ink);background:var(--surface);position:sticky;left:0;z-index:1;padding-left:4px}
+thead th{font-size:.9rem;font-weight:700;color:var(--ink);padding-bottom:2px}
+tr.in td{padding:0}
+tr.in td.rowlbl{padding:8px 12px 8px 4px;color:var(--in-ink)}
+tr.in input{width:100%;min-width:140px;text-align:center;font-weight:700;font-size:1rem;background:var(--in-bg);border-color:var(--in-line);color:var(--in-ink)}
+tr.in input:hover{border-color:var(--in-focus)}
+tr.in input:focus-visible{border-color:var(--in-focus);box-shadow:0 0 0 4px var(--in-bg)}
+tr.in input.bad{background:var(--err-bg);border-color:var(--err);color:var(--err)}
+.colhead{display:flex;align-items:center;justify-content:center;gap:6px}
+.x{border:none;background:none;padding:0 4px;color:var(--muted);font-size:1rem;line-height:1;border-radius:50%}
+.del{display:inline-flex;align-items:center;gap:4px;background:none;border:none;padding:3px 9px;font-size:.78rem;font-weight:600;color:var(--muted)}
+.del:hover{color:var(--err);background:var(--err-bg)}
+.undo{padding:4px 12px;margin-left:8px;font-size:.85rem}
+tr.sep td{padding:0;height:6px;background:none}
+tr.sep td::after{content:"";display:block;height:1px;background:var(--line)}
+tr.date td{font-weight:700;font-size:.95rem;padding-top:4px;padding-bottom:4px}
+tr.date td.rowlbl{color:var(--muted);font-weight:600}
+td.out{font-size:.95rem;font-weight:600;border-radius:12px;background:var(--fill)}
+tr.base td.out{font-weight:800}
+.grip{background:none;border:none;padding:2px 5px;margin-right:6px;color:var(--muted);cursor:grab;touch-action:none;font-size:.85rem;letter-spacing:-2px;line-height:1;border-radius:6px}
+.grip:hover{color:var(--accent);background:var(--accent-soft)}
+body.dragging,body.dragging *{cursor:grabbing!important;user-select:none}
+tr.moving td,th.moving,td.moving{box-shadow:0 0 0 2px var(--drop) inset}
+td.out.office{background:var(--good);color:var(--good-ink)}
+td.out.edge{background:var(--warn);color:var(--warn-ink)}
+td.out.night{background:var(--bad);color:var(--bad-ink)}
+td.out .tag{color:inherit;opacity:.8;font-weight:500;font-size:.82rem}
+.legend{display:flex;flex-wrap:wrap;gap:6px 20px;font-size:.85rem;color:var(--muted);align-items:center}
+.sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:0}
+.sw.office{background:var(--dot-good)} .sw.edge{background:var(--dot-warn)} .sw.night{background:var(--dot-bad)}
+.hint{font-size:.85rem;color:var(--muted);margin:0;max-width:80ch}
+.hint code{font-family:inherit;font-weight:700;background:var(--in-bg);color:var(--in-ink);padding:1px 7px;border-radius:6px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:6px 6px 6px 14px;font-size:.9rem;font-weight:600;background:var(--fill);border:1px solid var(--line)}
+.chip .x:hover{color:var(--err);background:var(--err-bg)}
+.chip.base{background:var(--accent-soft);color:var(--accent);padding-right:14px;border-color:transparent}
+#addZone{background-color:var(--in-bg);border-color:var(--in-line);color:var(--in-ink);font-weight:600}
+.toast{min-height:1.4em;font-size:.9rem;color:var(--ok);font-weight:700}
+textarea.fallback{width:100%;height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;background:var(--fill);color:var(--ink);border:none;border-radius:12px;padding:12px}
+@media (max-width:560px){ body{padding-top:32px} .panel{padding:16px;border-radius:18px} .bar{align-items:stretch} .actions{width:100%} .actions button{flex:1} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.panel .bar{align-items:center}
+tr.in td.loccell{text-align:left}
+#loc{width:auto;max-width:100%}
+tr.in td.rowlbl label{font:inherit;color:inherit}
+.zones{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;padding:12px 14px;background:var(--fill);border-radius:14px}
+.zlabel{font-size:.85rem;font-weight:700;color:var(--muted);margin-right:4px}
+#addZone{padding-top:6px;padding-bottom:6px;font-size:.9rem;border-radius:999px}
+.chip{background:var(--surface)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">HK · Tokyo · Sydney · London · US</span>
+    <h1>Global Meeting Planner</h1>
+    <p class="sub">Fill in the purple boxes with your location and each proposed date, start time and duration. Every time zone updates instantly, with daylight saving handled. Then copy the table straight into Excel.</p>
+  </header>
+
+  <section class="panel">
+    <div class="bar">
+      <div class="fillnote"><span class="sw"></span>Purple boxes are for you to fill in</div>
+      <div class="actions">
+        <button id="addCol" type="button">+ Add proposed time</button>
+        <button id="copy" class="primary" type="button">Copy for Excel</button>
+      </div>
+    </div>
+    <div class="scroll"><table id="grid"></table></div>
+    <div class="zones">
+      <span class="zlabel">Time zones shown</span>
+      <div class="chips" id="chips"></div>
+      <select id="addZone" aria-label="Add a time zone"></select>
+    </div>
+    <div class="legend"><span><span class="sw office"></span>Office hours (0800–1800)</span><span><span class="sw edge"></span>Early / late</span><span><span class="sw night"></span>Overnight (2200–0700)</span></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <textarea class="fallback" id="fallback" hidden readonly aria-label="Copy this text"></textarea>
+    <p class="hint">Start time uses 24H format, e.g. <code>0800</code>, <code>0930</code> or <code>14:00</code>. “(prev day)” / “(next day)” is compared with the date in your location. Drag <b>⋮⋮</b> to move a time zone up or down, or a proposed time left or right (or click it and use the arrow keys).</p>
+  </section>
+</div>
+
+<script>
+const ZONES = {
+  HKT:{tz:"Asia/Hong_Kong",std:"HKT",dst:"HKT",city:"Hong Kong"},
+  JST:{tz:"Asia/Tokyo",std:"JST",dst:"JST",city:"Tokyo"},
+  AET:{tz:"Australia/Sydney",std:"AEST",dst:"AEDT",city:"Sydney / Melbourne"},
+  UKT:{tz:"Europe/London",std:"GMT",dst:"BST",city:"London"},
+  ET:{tz:"America/New_York",std:"EST",dst:"EDT",city:"Baltimore / New York"},
+  SGT:{tz:"Asia/Singapore",std:"SGT",dst:"SGT",city:"Singapore"},
+  CST8:{tz:"Asia/Shanghai",std:"CST",dst:"CST",city:"Shanghai / Beijing"},
+  TWT:{tz:"Asia/Taipei",std:"TWT",dst:"TWT",city:"Taipei"},
+  KST:{tz:"Asia/Seoul",std:"KST",dst:"KST",city:"Seoul"},
+  PHT:{tz:"Asia/Manila",std:"PHT",dst:"PHT",city:"Manila"},
+  ICT:{tz:"Asia/Bangkok",std:"ICT",dst:"ICT",city:"Bangkok"},
+  IST:{tz:"Asia/Kolkata",std:"IST",dst:"IST",city:"Mumbai"},
+  GST:{tz:"Asia/Dubai",std:"GST",dst:"GST",city:"Dubai"},
+  AEQ:{tz:"Australia/Brisbane",std:"AEST",dst:"AEST",city:"Brisbane"},
+  AWST:{tz:"Australia/Perth",std:"AWST",dst:"AWST",city:"Perth"},
+  NZT:{tz:"Pacific/Auckland",std:"NZST",dst:"NZDT",city:"Auckland"},
+  CET:{tz:"Europe/Paris",std:"CET",dst:"CEST",city:"Paris / Frankfurt / Zurich"},
+  CT:{tz:"America/Chicago",std:"CST",dst:"CDT",city:"Chicago"},
+  PT:{tz:"America/Los_Angeles",std:"PST",dst:"PDT",city:"Los Angeles / San Francisco"}
+};
+const DEFAULT = {
+  base:"HKT",
+  zones:["HKT","JST","AET","UKT","ET"],
+  cols:[{date:"",start:"0900",dur:"30"}]
+};
+/* next Mon–Fri after today, in the given location */
+function nextWorkingDay(baseKey){
+  const t=parts(ZONES[baseKey||"HKT"].tz,Date.now());
+  for(let n=1;n<8;n++){
+    const d=new Date(Date.UTC(t.y,t.m-1,t.d+n)), w=d.getUTCDay();
+    if(w!==0&&w!==6) return d.toISOString().slice(0,10);
+  }
+}
+DEFAULT.cols[0].date=nextWorkingDay(DEFAULT.base);
+let state = load() || structuredClone(DEFAULT);
+/* show start times as 4 digits, e.g. 900 -> 0900 */
+function fmtStart(v){ const t=parseStart(v); return t?String(t.h).padStart(2,"0")+String(t.m).padStart(2,"0"):v; }
+state.cols.forEach(c=>c.start=fmtStart(c.start));
+
+function load(){ try{ const s=JSON.parse(localStorage.getItem("mtc-state-v2")); return s&&s.cols&&s.zones?s:null; }catch(e){ return null; } }
+function save(){ try{ localStorage.setItem("mtc-state-v2",JSON.stringify(state)); }catch(e){} }
+
+/* ---- time maths ---- */
+function offsetMin(tz, ms){
+  const p = {}; new Intl.DateTimeFormat("en-US",{timeZone:tz,hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})
+    .formatToParts(new Date(ms)).forEach(x=>p[x.type]=x.value);
+  const asUTC = Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute);
+  return Math.round((asUTC - Math.floor(ms/60000)*60000)/60000);
+}
+function wallToUTC(tz,y,m,d,h,mi){
+  const guess = Date.UTC(y,m-1,d,h,mi);
+  let utc = guess - offsetMin(tz,guess)*60000;
+  const o2 = offsetMin(tz,utc); utc = guess - o2*60000;
+  return utc;
+}
+function parts(tz, ms){
+  const p={}; new Intl.DateTimeFormat("en-US",{timeZone:tz,hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})
+    .formatToParts(new Date(ms)).forEach(x=>p[x.type]=x.value);
+  return {y:+p.year,m:+p.month,d:+p.day,h:+p.hour%24,mi:+p.minute};
+}
+function isDST(tz, ms){
+  const y = new Date(ms).getUTCFullYear();
+  const std = Math.min(offsetMin(tz,Date.UTC(y,0,15)), offsetMin(tz,Date.UTC(y,6,15)));
+  return offsetMin(tz,ms) > std;
+}
+function utcLabel(min){ const s=min<0?"-":"+"; min=Math.abs(min); const h=Math.floor(min/60), m=min%60; return "UTC"+s+h+(m?":"+String(m).padStart(2,"0"):""); }
+function rowLabel(key){
+  const z=ZONES[key];
+  if(z.std!==z.dst) return z.std+"/"+z.dst;
+  return z.std+" ("+utcLabel(offsetMin(z.tz,Date.now()))+")";
+}
+function hhmm(p){ return String(p.h).padStart(2,"0")+String(p.mi).padStart(2,"0"); }
+function parseStart(s){
+  s=String(s||"").trim().replace(/[.:hH]/g,"");
+  if(!/^\d{1,4}$/.test(s)) return null;
+  let h,m;
+  if(s.length<=2){ h=+s; m=0; } else { h=+s.slice(0,-2); m=+s.slice(-2); }
+  if(h>23||m>59) return null; return {h,m};
+}
+function parseDate(s){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||""); return m?{y:+m[1],m:+m[2],d:+m[3]}:null; }
+function dateHeading(d){
+  const dt=new Date(Date.UTC(d.y,d.m-1,d.d));
+  return dt.toLocaleDateString("en-US",{timeZone:"UTC",weekday:"short",month:"short",day:"2-digit"});
+}
+function compute(col){
+  const d=parseDate(col.date), s=parseStart(col.start), dur=parseInt(col.dur,10);
+  if(!d||!s||!(dur>0)) return null;
+  const baseTz=ZONES[state.base].tz;
+  const startUTC=wallToUTC(baseTz,d.y,d.m,d.d,s.h,s.m), endUTC=startUTC+dur*60000;
+  const baseDay=Date.UTC(d.y,d.m-1,d.d);
+  const rows={};
+  for(const k of zoneOrder()){
+    const z=ZONES[k], a=parts(z.tz,startUTC), b=parts(z.tz,endUTC);
+    const abbr=isDST(z.tz,startUTC)?z.dst:z.std;
+    const diff=Math.round((Date.UTC(a.y,a.m-1,a.d)-baseDay)/86400000);
+    const tag=diff<0?" (prev day)":diff>0?" (next day)":"";
+    const sm=a.h*60+a.mi, em=b.h*60+b.mi, cross=(b.d!==a.d);
+    const cls=(sm<420||sm>=1320)?"night":(!cross&&sm>=480&&em<=1080)?"office":"edge";
+    rows[k]={time:hhmm(a)+"-"+hhmm(b)+" "+abbr, tag, cls};
+  }
+  return {heading:dateHeading(d), rows};
+}
+function zoneOrder(){ return state.zones.includes(state.base)?state.zones.slice():[state.base,...state.zones]; }
+
+/* ---- render ---- */
+const $=id=>document.getElementById(id);
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function renderSelects(){ renderLoc(); renderZoneUI(); }
+function renderLoc(){
+  const el=$("loc"); if(!el) return;
+  el.innerHTML=Object.entries(ZONES).map(([k,z])=>`<option value="${k}" ${k===state.base?"selected":""}>${esc(z.city)} — ${esc(rowLabel(k))}</option>`).join("");
+}
+function renderZoneUI(){
+  const avail=Object.keys(ZONES).filter(k=>!zoneOrder().includes(k));
+  $("addZone").innerHTML=`<option value="">+ Add a time zone…</option>`+avail.map(k=>`<option value="${k}">${esc(ZONES[k].city)} — ${esc(rowLabel(k))}</option>`).join("");
+  $("chips").innerHTML=zoneOrder().map(k=>k===state.base
+    ?`<span class="chip base">${esc(rowLabel(k))} · your location</span>`
+    :`<span class="chip">${esc(rowLabel(k))}<button class="x" type="button" data-rmzone="${k}" aria-label="Remove ${esc(rowLabel(k))}">×</button></span>`).join("");
+}
+
+function renderGrid(){
+  const cols=state.cols, baseAbbr=rowLabel(state.base);
+  let h=`<thead>`+`<tr class="in"><td class="rowlbl"><label for="loc">Your location</label></td><td class="loccell" colspan="${cols.length}"><select id="loc" aria-label="Your location (start time is in this zone)"></select></td></tr>`+`<tr><th class="rowlbl"></th>`+cols.map((c,i)=>`<th data-col="${i}"><span class="colhead"><button class="grip" type="button" data-drag="col" data-i="${i}" aria-label="Move proposed time ${i+1} (drag or use left/right arrow keys)">⋮⋮</button>Proposed time ${i+1}${cols.length>1?`<button class="del" type="button" data-rmcol="${i}" aria-label="Delete proposed time ${i+1}" title="Delete proposed time ${i+1}"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M6 1.5h4l.5 1H14v1.5H2V2.5h3.5zM3.2 5h9.6l-.7 9.1a1 1 0 0 1-1 .9H4.9a1 1 0 0 1-1-.9zm3 1.8v6.2h1.1V6.8zm2.5 0v6.2h1.1V6.8z"/></svg>Delete</button>`:""}</span></th>`).join("")+`</tr></thead><tbody>`;
+  h+=`<tr class="in"><td class="rowlbl">Date</td>`+cols.map((c,i)=>`<td><input type="date" id="d${i}" data-i="${i}" data-f="date" value="${esc(c.date)}"></td>`).join("")+`</tr>`;
+  h+=`<tr class="in"><td class="rowlbl">Start time (${esc(ZONES[state.base].std===ZONES[state.base].dst?ZONES[state.base].std:baseAbbr)}) 24H</td>`+cols.map((c,i)=>`<td><input id="s${i}" inputmode="numeric" data-i="${i}" data-f="start" value="${esc(c.start)}" class="${parseStart(c.start)?"":"bad"}" aria-label="Start time, proposed time ${i+1}"></td>`).join("")+`</tr>`;
+  h+=`<tr class="in"><td class="rowlbl">Duration (mins)</td>`+cols.map((c,i)=>`<td><input id="u${i}" type="number" min="5" step="5" data-i="${i}" data-f="dur" value="${esc(c.dur)}" class="${parseInt(c.dur,10)>0?"":"bad"}" aria-label="Duration, proposed time ${i+1}"></td>`).join("")+`</tr>`;
+  h+=`<tr class="sep"><td colspan="${cols.length+1}"></td></tr>`;
+  h+=`<tbody id="out"></tbody>`;
+  $("grid").innerHTML=h;
+  renderLoc();
+  renderOut();
+}
+function renderOut(){
+  const res=state.cols.map(compute);
+  let h=`<tr class="date"><td class="rowlbl">Date</td>`+res.map(r=>`<td>${r?esc(r.heading):"—"}</td>`).join("")+`</tr>`;
+  for(const k of zoneOrder()){
+    h+=`<tr data-k="${k}" class="zone ${k===state.base?"base":""}"><td class="rowlbl"><button class="grip" type="button" data-drag="row" data-k="${k}" aria-label="Move ${esc(rowLabel(k))} (drag or use up/down arrow keys)">⋮⋮</button>${esc(rowLabel(k))}</td>`+res.map(r=>r?`<td class="out ${r.rows[k].cls}" title="${{office:"Office hours",edge:"Early / late",night:"Overnight"}[r.rows[k].cls]}">${esc(r.rows[k].time)}${r.rows[k].tag?`<span class="tag">${esc(r.rows[k].tag)}</span>`:""}</td>`:`<td class="out">—</td>`).join("")+`</tr>`;
+  }
+  $("out").innerHTML=h;
+}
+function renderAll(){ renderSelects(); renderGrid(); save(); }
+
+/* ---- events ---- */
+$("grid").addEventListener("change",e=>{
+  const t=e.target; if(t.dataset&&t.dataset.f==="start"){ const v=fmtStart(t.value); if(v!==t.value){ t.value=v; state.cols[+t.dataset.i].start=v; save(); } }
+});
+$("grid").addEventListener("input",e=>{
+  const t=e.target; if(!t.dataset||t.dataset.f===undefined) return;
+  state.cols[+t.dataset.i][t.dataset.f]=t.value;
+  if(t.dataset.f==="start") t.classList.toggle("bad",!parseStart(t.value));
+  if(t.dataset.f==="dur") t.classList.toggle("bad",!(parseInt(t.value,10)>0));
+  renderOut(); save();
+});
+$("grid").addEventListener("click",e=>{
+  const b=e.target.closest("[data-rmcol]"); if(!b) return;
+  const i=+b.dataset.rmcol, removed=state.cols.splice(i,1)[0]; renderAll();
+  toast(`Proposed time ${i+1} deleted.`,()=>{ state.cols.splice(Math.min(i,state.cols.length),0,removed); renderAll(); toast("Proposed time restored."); });
+});
+$("addCol").addEventListener("click",()=>{
+  const last=state.cols[state.cols.length-1]||{date:"",start:"0900",dur:"30"};
+  state.cols.push({date:nextWorkingDay(state.base),start:last.start,dur:last.dur}); renderAll();
+  const i=state.cols.length-1; const el=$("d"+i); if(el) el.focus();
+});
+$("grid").addEventListener("change",e=>{ if(e.target.id!=="loc") return;
+  state.base=e.target.value; if(!state.zones.includes(state.base)) state.zones.unshift(state.base); renderAll();
+});
+$("addZone").addEventListener("change",e=>{ if(e.target.value){ state.zones.push(e.target.value); renderAll(); } });
+$("chips").addEventListener("click",e=>{
+  const b=e.target.closest("[data-rmzone]"); if(!b) return;
+  state.zones=state.zones.filter(k=>k!==b.dataset.rmzone); renderAll();
+});
+
+/* ---- drag to reorder ---- */
+let drag=null;
+function moveItem(arr,from,to){ const [x]=arr.splice(from,1); arr.splice(to,0,x); }
+function markMoving(){
+  document.querySelectorAll(".moving").forEach(el=>el.classList.remove("moving"));
+  if(!drag) return;
+  if(drag.type==="row"){ const tr=document.querySelector(`#out tr[data-k="${drag.key}"]`); if(tr) tr.classList.add("moving"); }
+  else { const i=drag.index+2; document.querySelectorAll(`#grid tr > :nth-child(${i})`).forEach(c=>c.classList.add("moving")); }
+}
+function moveRow(key,to){
+  const order=zoneOrder(), from=order.indexOf(key);
+  to=Math.max(0,Math.min(order.length-1,to)); if(from===to||from<0) return false;
+  moveItem(order,from,to); state.zones=order; renderSelects(); renderOut(); save(); return true;
+}
+function moveCol(from,to){
+  to=Math.max(0,Math.min(state.cols.length-1,to)); if(from===to) return false;
+  moveItem(state.cols,from,to); renderGrid(); save(); return true;
+}
+$("grid").addEventListener("pointerdown",e=>{
+  const g=e.target.closest(".grip"); if(!g||e.button>0) return;
+  e.preventDefault();
+  drag=g.dataset.drag==="row"?{type:"row",key:g.dataset.k}:{type:"col",index:+g.dataset.i};
+  document.body.classList.add("dragging"); markMoving();
+});
+document.addEventListener("pointermove",e=>{
+  if(!drag) return;
+  if(drag.type==="row"){
+    const rows=[...document.querySelectorAll("#out tr.zone")];
+    let to=rows.filter(r=>{const b=r.getBoundingClientRect(); return b.top+b.height/2<e.clientY;}).length;
+    const from=zoneOrder().indexOf(drag.key); if(to>from) to--;
+    if(moveRow(drag.key,to)) markMoving();
+  } else {
+    const ths=[...document.querySelectorAll("#grid thead th[data-col]")];
+    let to=ths.filter(t=>{const b=t.getBoundingClientRect(); return b.left+b.width/2<e.clientX;}).length;
+    if(to>drag.index) to--;
+    if(moveCol(drag.index,to)){ drag.index=Math.max(0,Math.min(state.cols.length-1,to)); markMoving(); }
+  }
+});
+function endDrag(){ if(!drag) return; drag=null; document.body.classList.remove("dragging"); markMoving(); }
+document.addEventListener("pointerup",endDrag);
+document.addEventListener("pointercancel",endDrag);
+$("grid").addEventListener("keydown",e=>{
+  const g=e.target.closest(".grip"); if(!g) return;
+  if(g.dataset.drag==="row"&&(e.key==="ArrowUp"||e.key==="ArrowDown")){
+    e.preventDefault(); const k=g.dataset.k, i=zoneOrder().indexOf(k);
+    moveRow(k,i+(e.key==="ArrowUp"?-1:1)); const n=document.querySelector(`.grip[data-k="${k}"]`); if(n) n.focus();
+  }
+  if(g.dataset.drag==="col"&&(e.key==="ArrowLeft"||e.key==="ArrowRight")){
+    e.preventDefault(); const i=+g.dataset.i, to=Math.max(0,Math.min(state.cols.length-1,i+(e.key==="ArrowLeft"?-1:1)));
+    moveCol(i,to); const n=document.querySelector(`.grip[data-drag="col"][data-i="${to}"]`); if(n) n.focus();
+  }
+});
+
+/* ---- copy ---- */
+function buildCopy(){
+  const res=state.cols.map(compute);
+  const rows=[["Date",...res.map(r=>r?r.heading:"")]];
+  for(const k of zoneOrder()) rows.push([rowLabel(k),...res.map(r=>r?r.rows[k].time+r.rows[k].tag:"")]);
+  const tsv=rows.map(r=>r.join("\t")).join("\r\n");
+  const td=(v,b,left)=>`<td style="border:1px solid #bfbfbf;padding:2px 6px;text-align:${left?"left":"center"};${b?"font-weight:bold;":""}font-family:'Times New Roman';">${esc(v)}</td>`;
+  const html=`<table style="border-collapse:collapse">`+rows.map((r,ri)=>`<tr>`+r.map((v,ci)=>td(v,ri===0&&ci>0,ci===0)).join("")+`</tr>`).join("")+`</table>`;
+  return {tsv,html};
+}
+function toast(msg,undo){
+  const el=$("toast"); el.textContent=msg; clearTimeout(toast.t);
+  if(undo){ const b=document.createElement("button"); b.type="button"; b.className="undo"; b.textContent="Undo";
+    b.onclick=()=>{ clearTimeout(toast.t); el.textContent=""; undo(); }; el.append(" ",b); }
+  toast.t=setTimeout(()=>el.textContent="",undo?8000:3500);
+}
+$("copy").addEventListener("click",async()=>{
+  const {tsv,html}=buildCopy();
+  $("fallback").hidden=true;
+  try{
+    if(window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({"text/plain":new Blob([tsv],{type:"text/plain"}),"text/html":new Blob([html],{type:"text/html"})})]);
+    } else { await navigator.clipboard.writeText(tsv); }
+    toast("Copied. Click a cell in Excel and paste (Ctrl+V).");
+  }catch(err){
+    try{ await navigator.clipboard.writeText(tsv); toast("Copied. Click a cell in Excel and paste (Ctrl+V)."); }
+    catch(e2){
+      const f=$("fallback"); f.value=tsv; f.hidden=false; f.focus(); f.select();
+      toast("Press Ctrl+C (or Cmd+C) to copy the selected text, then paste into Excel.");
+    }
+  }
+});
+
+renderAll();
+</script>
+
+</body>
+</html>
