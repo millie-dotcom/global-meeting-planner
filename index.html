@@ -68,7 +68,12 @@ button.primary{background:var(--accent);border-color:var(--accent);color:var(--a
 button.primary:hover{background:var(--accent-hover)}
 .panel{background:var(--surface);border-radius:22px;padding:24px;display:grid;gap:16px;box-shadow:var(--shadow);border:1px solid var(--line)}
 .fillnote{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--in-ink);font-weight:600}
-.fillnote .sw{background:var(--in-bg);border:1.5px solid var(--in-line);width:16px;height:16px;border-radius:5px;margin:0}
+.fillnote .sample{background:var(--in-bg);border:1.5px solid var(--in-line);color:var(--in-ink);border-radius:8px;padding:2px 9px}
+.issues{display:grid;gap:6px}
+.issues:empty{display:none}
+.issue{margin:0;padding:8px 12px;border-radius:10px;font-size:.88rem;line-height:1.4}
+.issue.err{background:var(--err-bg);color:var(--err)}
+.issue.note{background:var(--warn);color:var(--warn-ink)}
 .scroll{overflow-x:auto;margin:-6px}
 table{border-collapse:separate;border-spacing:6px;font-variant-numeric:tabular-nums;min-width:100%}
 th,td{padding:8px 12px;text-align:center;white-space:nowrap;border:none}
@@ -121,6 +126,25 @@ tr.in td.rowlbl label{font:inherit;color:inherit}
 .zlabel{font-size:.85rem;font-weight:700;color:var(--muted);margin-right:4px}
 #addZone{padding-top:6px;padding-bottom:6px;font-size:.9rem;border-radius:999px}
 .chip{background:var(--surface)}
+@media (max-width:560px){
+  table{border-spacing:4px}
+  th,td{padding:7px 8px}
+  th.rowlbl,td.rowlbl{white-space:normal;width:88px;min-width:88px;max-width:88px;font-size:.8rem;line-height:1.25}
+  tr.in td.rowlbl{padding:6px 4px 6px 2px}
+  tr.in input{min-width:112px;font-size:.92rem;padding:8px 6px}
+  tr.in input[type="date"]{min-width:130px}
+  thead th{font-size:.78rem}
+  .colhead{flex-wrap:wrap;gap:2px}
+  td.out{font-size:.85rem}
+  td.out .tag{display:block;font-size:.72rem}
+  .grip{margin-right:2px;padding:2px}
+  #addZone{width:100%}
+  th.rowlbl,td.rowlbl{width:100px;min-width:100px;max-width:100px;font-size:.78rem}
+  tr.zone td.rowlbl{white-space:nowrap}
+  .panel .bar{flex-direction:column;align-items:stretch}
+  .actions button{padding:10px 12px;white-space:nowrap}
+}
+#addZone,#loc{max-width:100%}
 </style>
 </head>
 <body>
@@ -134,13 +158,14 @@ tr.in td.rowlbl label{font:inherit;color:inherit}
 
   <section class="panel">
     <div class="bar">
-      <div class="fillnote"><span class="sw"></span>Purple boxes are for you to fill in</div>
+      <div class="fillnote"><span class="sample">Purple boxes</span> are for you to fill in</div>
       <div class="actions">
         <button id="addCol" type="button">+ Add proposed time</button>
         <button id="copy" class="primary" type="button">Copy for Excel</button>
       </div>
     </div>
     <div class="scroll"><table id="grid"></table></div>
+    <div class="issues" id="issues" role="status" aria-live="polite"></div>
     <div class="zones">
       <span class="zlabel">Time zones shown</span>
       <div class="chips" id="chips"></div>
@@ -149,7 +174,7 @@ tr.in td.rowlbl label{font:inherit;color:inherit}
     <div class="legend"><span><span class="sw office"></span>Office hours (0800–1800)</span><span><span class="sw edge"></span>Early / late</span><span><span class="sw night"></span>Overnight (2200–0700)</span></div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <textarea class="fallback" id="fallback" hidden readonly aria-label="Copy this text"></textarea>
-    <p class="hint">Start time uses 24H format, e.g. <code>0800</code>, <code>0930</code> or <code>14:00</code>. “(prev day)” / “(next day)” is compared with the date in your location. Drag <b>⋮⋮</b> to move a time zone up or down, or a proposed time left or right (or click it and use the arrow keys).</p>
+    <p class="hint">Start time: 24H like <code>0930</code> or <code>1430</code> (you can also type <code>8.30</code>, <code>14:00</code> or <code>2:30pm</code>). Duration: whole minutes, up to 1440. “(prev day)” / “(next day)” is compared with the date in your location, and <b>(+1)</b> means the meeting ends the next day. Drag <b>⋮⋮</b> to move a time zone up or down, or a proposed time left or right (or click it and use the arrow keys).</p>
   </section>
 </div>
 
@@ -180,9 +205,9 @@ const DEFAULT = {
   zones:["HKT","JST","AET","UKT","ET"],
   cols:[{date:"",start:"0900",dur:"30"}]
 };
-/* next Mon–Fri after today, in the given location */
-function nextWorkingDay(baseKey){
-  const t=parts(ZONES[baseKey||"HKT"].tz,Date.now());
+/* next Mon–Fri after a given date (or after today in the given location) */
+function nextWorkingDay(baseKey,fromDate){
+  const t=parseDate(fromDate)?{...parseDate(fromDate)}:parts(ZONES[baseKey||"HKT"].tz,Date.now());
   for(let n=1;n<8;n++){
     const d=new Date(Date.UTC(t.y,t.m-1,t.d+n)), w=d.getUTCDay();
     if(w!==0&&w!==6) return d.toISOString().slice(0,10);
@@ -227,12 +252,24 @@ function rowLabel(key){
   return z.std+" ("+utcLabel(offsetMin(z.tz,Date.now()))+")";
 }
 function hhmm(p){ return String(p.h).padStart(2,"0")+String(p.mi).padStart(2,"0"); }
-function parseStart(s){
-  s=String(s||"").trim().replace(/[.:hH]/g,"");
-  if(!/^\d{1,4}$/.test(s)) return null;
-  let h,m;
-  if(s.length<=2){ h=+s; m=0; } else { h=+s.slice(0,-2); m=+s.slice(-2); }
+function parseStart(v){
+  let s=String(v||"").trim().toLowerCase().replace(/\s+/g,"").replace(/\.$/,"");
+  let ap=null; const am=s.match(/^(.*?)(am|pm|a|p)$/); if(am){ ap=am[2][0]; s=am[1]; }
+  let h,m; const sep=s.match(/^(\d{1,2})[.:h](\d{2})$/);
+  if(sep){ h=+sep[1]; m=+sep[2]; }
+  else if(/^\d{1,4}$/.test(s)){ if(s.length<=2){ h=+s; m=0; } else { h=+s.slice(0,-2); m=+s.slice(-2); } }
+  else return null;
+  if(ap){ if(h<1||h>12) return null; if(ap==="p"&&h<12) h+=12; if(ap==="a"&&h===12) h=0; }
   if(h>23||m>59) return null; return {h,m};
+}
+function parseDur(v){ const t=String(v??"").trim(); if(!/^\d+$/.test(t)) return null; const n=+t; return n>=5&&n<=1440?n:null; }
+function startProblem(v){ return String(v||"").trim()===""?"Please enter a start time.":`Start time “${v}” isn’t valid. Use 24H, e.g. 0930 or 1430.`; }
+function durProblem(v){
+  const t=String(v??"").trim();
+  if(t==="") return "Please enter a duration in whole minutes, e.g. 30 or 90.";
+  if(/^\d*\.\d+$/.test(t)) return `Duration “${t}” has a decimal. Please use whole minutes, e.g. 90 for 1.5 hours.`;
+  if(/^\d+$/.test(t)&&+t>1440) return `Duration “${t}” is longer than a day. Please use up to 1440 mins.`;
+  return `Duration “${t}” isn’t valid. Please use whole minutes from 5 to 1440.`;
 }
 function parseDate(s){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||""); return m?{y:+m[1],m:+m[2],d:+m[3]}:null; }
 function dateHeading(d){
@@ -240,22 +277,31 @@ function dateHeading(d){
   return dt.toLocaleDateString("en-US",{timeZone:"UTC",weekday:"short",month:"short",day:"2-digit"});
 }
 function compute(col){
-  const d=parseDate(col.date), s=parseStart(col.start), dur=parseInt(col.dur,10);
-  if(!d||!s||!(dur>0)) return null;
+  const d=parseDate(col.date), s=parseStart(col.start), dur=parseDur(col.dur);
+  if(!d||!s||!dur) return null;
   const baseTz=ZONES[state.base].tz;
   const startUTC=wallToUTC(baseTz,d.y,d.m,d.d,s.h,s.m), endUTC=startUTC+dur*60000;
   const baseDay=Date.UTC(d.y,d.m-1,d.d);
-  const rows={};
+  const rows={}, bz=ZONES[state.base], heading=dateHeading(d);
+  let note="";
+  const chk=parts(baseTz,startUTC), want=hhmm({h:s.h,mi:s.m}), babbr=isDST(baseTz,startUTC)?bz.dst:bz.std;
+  if(chk.h!==s.h||chk.mi!==s.m){
+    note=`${want} doesn’t exist in ${bz.city} on ${heading}, because the clocks go forward that night. It’s shown as ${hhmm(chk)} ${babbr}.`;
+  } else {
+    for(const dm of [-60,60]){ const q=parts(baseTz,startUTC+dm*60000);
+      if(q.h===s.h&&q.mi===s.m&&q.d===chk.d){ note=`${want} happens twice in ${bz.city} on ${heading}, because the clocks go back that night. It’s shown as ${want} ${babbr}.`; break; } }
+  }
   for(const k of zoneOrder()){
     const z=ZONES[k], a=parts(z.tz,startUTC), b=parts(z.tz,endUTC);
     const abbr=isDST(z.tz,startUTC)?z.dst:z.std;
     const diff=Math.round((Date.UTC(a.y,a.m-1,a.d)-baseDay)/86400000);
     const tag=diff<0?" (prev day)":diff>0?" (next day)":"";
-    const sm=a.h*60+a.mi, em=b.h*60+b.mi, cross=(b.d!==a.d);
-    const cls=(sm<420||sm>=1320)?"night":(!cross&&sm>=480&&em<=1080)?"office":"edge";
-    rows[k]={time:hhmm(a)+"-"+hhmm(b)+" "+abbr, tag, cls};
+    const sm=a.h*60+a.mi, em=b.h*60+b.mi;
+    const endDays=Math.round((Date.UTC(b.y,b.m-1,b.d)-Date.UTC(a.y,a.m-1,a.d))/86400000);
+    const cls=(sm<420||sm>=1320)?"night":(endDays===0&&sm>=480&&em<=1080)?"office":"edge";
+    rows[k]={time:hhmm(a)+"-"+hhmm(b)+(endDays>0?`(+${endDays})`:"")+" "+abbr, tag, cls};
   }
-  return {heading:dateHeading(d), rows};
+  return {heading, rows, note};
 }
 function zoneOrder(){ return state.zones.includes(state.base)?state.zones.slice():[state.base,...state.zones]; }
 
@@ -281,7 +327,7 @@ function renderGrid(){
   let h=`<thead>`+`<tr class="in"><td class="rowlbl"><label for="loc">Your location</label></td><td class="loccell" colspan="${cols.length}"><select id="loc" aria-label="Your location (start time is in this zone)"></select></td></tr>`+`<tr><th class="rowlbl"></th>`+cols.map((c,i)=>`<th data-col="${i}"><span class="colhead"><button class="grip" type="button" data-drag="col" data-i="${i}" aria-label="Move proposed time ${i+1} (drag or use left/right arrow keys)">⋮⋮</button>Proposed time ${i+1}${cols.length>1?`<button class="del" type="button" data-rmcol="${i}" aria-label="Delete proposed time ${i+1}" title="Delete proposed time ${i+1}"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M6 1.5h4l.5 1H14v1.5H2V2.5h3.5zM3.2 5h9.6l-.7 9.1a1 1 0 0 1-1 .9H4.9a1 1 0 0 1-1-.9zm3 1.8v6.2h1.1V6.8zm2.5 0v6.2h1.1V6.8z"/></svg>Delete</button>`:""}</span></th>`).join("")+`</tr></thead><tbody>`;
   h+=`<tr class="in"><td class="rowlbl">Date</td>`+cols.map((c,i)=>`<td><input type="date" id="d${i}" data-i="${i}" data-f="date" value="${esc(c.date)}"></td>`).join("")+`</tr>`;
   h+=`<tr class="in"><td class="rowlbl">Start time (${esc(ZONES[state.base].std===ZONES[state.base].dst?ZONES[state.base].std:baseAbbr)}) 24H</td>`+cols.map((c,i)=>`<td><input id="s${i}" inputmode="numeric" data-i="${i}" data-f="start" value="${esc(c.start)}" class="${parseStart(c.start)?"":"bad"}" aria-label="Start time, proposed time ${i+1}"></td>`).join("")+`</tr>`;
-  h+=`<tr class="in"><td class="rowlbl">Duration (mins)</td>`+cols.map((c,i)=>`<td><input id="u${i}" type="number" min="5" step="5" data-i="${i}" data-f="dur" value="${esc(c.dur)}" class="${parseInt(c.dur,10)>0?"":"bad"}" aria-label="Duration, proposed time ${i+1}"></td>`).join("")+`</tr>`;
+  h+=`<tr class="in"><td class="rowlbl">Duration (mins)</td>`+cols.map((c,i)=>`<td><input id="u${i}" type="number" min="5" step="5" data-i="${i}" data-f="dur" value="${esc(c.dur)}" class="${parseDur(c.dur)?"":"bad"}" aria-label="Duration, proposed time ${i+1}"></td>`).join("")+`</tr>`;
   h+=`<tr class="sep"><td colspan="${cols.length+1}"></td></tr>`;
   h+=`<tbody id="out"></tbody>`;
   $("grid").innerHTML=h;
@@ -295,6 +341,15 @@ function renderOut(){
     h+=`<tr data-k="${k}" class="zone ${k===state.base?"base":""}"><td class="rowlbl"><button class="grip" type="button" data-drag="row" data-k="${k}" aria-label="Move ${esc(rowLabel(k))} (drag or use up/down arrow keys)">⋮⋮</button>${esc(rowLabel(k))}</td>`+res.map(r=>r?`<td class="out ${r.rows[k].cls}" title="${{office:"Office hours",edge:"Early / late",night:"Overnight"}[r.rows[k].cls]}">${esc(r.rows[k].time)}${r.rows[k].tag?`<span class="tag">${esc(r.rows[k].tag)}</span>`:""}</td>`:`<td class="out">—</td>`).join("")+`</tr>`;
   }
   $("out").innerHTML=h;
+  const list=[];
+  state.cols.forEach((c,i)=>{
+    const who=`<b>Proposed time ${i+1}:</b> `;
+    if(!parseDate(c.date)) list.push(`<p class="issue err">${who}Please choose a date.</p>`);
+    if(!parseStart(c.start)) list.push(`<p class="issue err">${who}${esc(startProblem(c.start))}</p>`);
+    if(!parseDur(c.dur)) list.push(`<p class="issue err">${who}${esc(durProblem(c.dur))}</p>`);
+    if(res[i]&&res[i].note) list.push(`<p class="issue note">${who}${esc(res[i].note)}</p>`);
+  });
+  $("issues").innerHTML=list.join("");
 }
 function renderAll(){ renderSelects(); renderGrid(); save(); }
 
@@ -306,7 +361,7 @@ $("grid").addEventListener("input",e=>{
   const t=e.target; if(!t.dataset||t.dataset.f===undefined) return;
   state.cols[+t.dataset.i][t.dataset.f]=t.value;
   if(t.dataset.f==="start") t.classList.toggle("bad",!parseStart(t.value));
-  if(t.dataset.f==="dur") t.classList.toggle("bad",!(parseInt(t.value,10)>0));
+  if(t.dataset.f==="dur") t.classList.toggle("bad",!parseDur(t.value));
   renderOut(); save();
 });
 $("grid").addEventListener("click",e=>{
@@ -316,7 +371,7 @@ $("grid").addEventListener("click",e=>{
 });
 $("addCol").addEventListener("click",()=>{
   const last=state.cols[state.cols.length-1]||{date:"",start:"0900",dur:"30"};
-  state.cols.push({date:nextWorkingDay(state.base),start:last.start,dur:last.dur}); renderAll();
+  state.cols.push({date:nextWorkingDay(state.base,last.date),start:last.start,dur:last.dur}); renderAll();
   const i=state.cols.length-1; const el=$("d"+i); if(el) el.focus();
 });
 $("grid").addEventListener("change",e=>{ if(e.target.id!=="loc") return;
@@ -387,7 +442,7 @@ function buildCopy(){
   const rows=[["Date",...res.map(r=>r?r.heading:"")]];
   for(const k of zoneOrder()) rows.push([rowLabel(k),...res.map(r=>r?r.rows[k].time+r.rows[k].tag:"")]);
   const tsv=rows.map(r=>r.join("\t")).join("\r\n");
-  const td=(v,b,left)=>`<td style="border:1px solid #bfbfbf;padding:2px 6px;text-align:${left?"left":"center"};${b?"font-weight:bold;":""}font-family:'Times New Roman';">${esc(v)}</td>`;
+  const td=(v,b,left)=>`<td style="border:1px solid #bfbfbf;padding:2px 6px;text-align:${left?"left":"center"};${b?"font-weight:bold;":""}font-family:Calibri,Arial,sans-serif;font-size:11pt;">${esc(v)}</td>`;
   const html=`<table style="border-collapse:collapse">`+rows.map((r,ri)=>`<tr>`+r.map((v,ci)=>td(v,ri===0&&ci>0,ci===0)).join("")+`</tr>`).join("")+`</table>`;
   return {tsv,html};
 }
@@ -400,6 +455,8 @@ function toast(msg,undo){
 $("copy").addEventListener("click",async()=>{
   const {tsv,html}=buildCopy();
   $("fallback").hidden=true;
+  /* GoatCounter: count each Copy for Excel click (only active on the GitHub version) */
+  try{ if(window.goatcounter&&window.goatcounter.count) window.goatcounter.count({path:"copy-for-excel",title:"Copy for Excel",event:true}); }catch(e){}
   try{
     if(window.ClipboardItem){
       await navigator.clipboard.write([new ClipboardItem({"text/plain":new Blob([tsv],{type:"text/plain"}),"text/html":new Blob([html],{type:"text/html"})})]);
@@ -417,5 +474,6 @@ $("copy").addEventListener("click",async()=>{
 renderAll();
 </script>
 
+<script data-goatcounter="https://gemi.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </body>
 </html>
